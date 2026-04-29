@@ -1,0 +1,23 @@
+{
+  "name": "lightworx/tasks-api-client",
+  "description": "Laravel SDK for Tasks API",
+  "type": "library",
+  "license": "MIT",
+  "require": {
+    "php": "^8.2",
+    "illuminate/support": "^10|^11|^12|^13",
+    "illuminate/http": "^10|^11|^12|^13"
+  },
+  "autoload": {
+    "psr-4": {
+      "Lightworx\\TasksApiClient\\": "src/"
+    }
+  },
+  "extra": {
+    "laravel": {
+      "providers": [
+        "Lightworx\\TasksApiClient\\TasksApiServiceProvider"
+      ]
+    }
+  }
+}
