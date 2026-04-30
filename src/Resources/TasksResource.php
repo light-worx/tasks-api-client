@@ -2,30 +2,14 @@
 
 namespace Lightworx\TasksApiClient\Resources;
 
-use Lightworx\TasksApiClient\TasksApiClient;
+use Lightworx\TasksApiClient\Query\TaskQuery;
 
 class TasksResource
 {
-    public function __construct(private TasksApiClient $client) {}
+    public function __construct(private $client) {}
 
-    public function all()
+    public function query(): TaskQuery
     {
-        return $this->client->http()
-            ->get('/api/tasks')
-            ->json();
-    }
-
-    public function create(array $data)
-    {
-        return $this->client->http()
-            ->post('/api/tasks', $data)
-            ->json();
-    }
-
-    public function byAssignee(string $email)
-    {
-        return $this->client->http()
-            ->get("/api/tasks/assignee/{$email}")
-            ->json();
+        return new TaskQuery($this->client);
     }
 }

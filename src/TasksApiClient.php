@@ -3,8 +3,8 @@
 namespace Lightworx\TasksApiClient;
 
 use Lightworx\TasksApiClient\Auth\TokenManager;
-use Lightworx\TasksApiClient\Resources\TasksResource;
 use Illuminate\Support\Facades\Http;
+use Lightworx\TasksApiClient\Query\TaskQuery;
 
 class TasksApiClient
 {
@@ -13,9 +13,9 @@ class TasksApiClient
         $this->tokenManager = new TokenManager($config);
     }
 
-    public function tasks(): TasksResource
+    public function tasks(): TaskQuery
     {
-        return new TasksResource($this);
+        return new TaskQuery($this);
     }
 
     public function http()
