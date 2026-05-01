@@ -2,12 +2,15 @@
 
 namespace Lightworx\TasksApiClient;
 
-use Lightworx\TasksApiClient\Auth\TokenManager;
+use Lightworx\TasksApiClient\Auth\TokenManager; 
 use Illuminate\Support\Facades\Http;
+use Lightworx\TasksApiClient\Meta\MetaClient;
 use Lightworx\TasksApiClient\Query\TaskQuery;
 
 class TasksApiClient
 {
+    protected TokenManager $tokenManager;
+
     public function __construct(private array $config)
     {
         $this->tokenManager = new TokenManager($config);
@@ -16,6 +19,16 @@ class TasksApiClient
     public function tasks(): TaskQuery
     {
         return new TaskQuery($this);
+    }
+
+    public function meta(): MetaClient
+    {
+        return new MetaClient($this);
+    }
+
+    public function statuses(): array
+    {
+        return $this->meta()->statuses();
     }
 
     public function http()
