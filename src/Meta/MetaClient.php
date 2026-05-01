@@ -10,10 +10,15 @@ class MetaClient
 
     public function all(): array
     {
-        return Cache::remember('tasks_api.meta', 3600, function () {
-            return $this->client->http()
-                ->get('/api/tasks/meta')
-                ->json();
+        // Use a unique key for the client-side cache
+        return Cache::remember('tasks_api.meta_client', 3600, function () {
+            $response = $this->client->http()->get('/api/tasks/meta');
+            
+            $data = $response->json();
+
+            // CRITICAL: Ensure we are only caching raw arrays
+            // We use recursion or collection helpers to strip all PHP class info
+            return json_decode(json_encode($data), true);
         });
     }
 
