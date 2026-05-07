@@ -12,7 +12,7 @@ class MetaClient
     {
         // Use a unique key for the client-side cache
         return Cache::remember('tasks_api.meta_client', 3600, function () {
-            $response = $this->client->http()->get('/api/tasks/meta');
+            $response = $this->client->http()->get('/api/meta/task-statuses');
             
             $data = $response->json();
 

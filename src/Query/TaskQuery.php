@@ -47,6 +47,12 @@ class TaskQuery
         return $this->whereAssignedTo($email);
     }
 
+    public function perPage(int $perPage): self
+    {
+        $this->params['per_page'] = $perPage;
+        return $this;
+    }
+
     // -------------------------
     // Sorting
     // -------------------------
@@ -69,11 +75,20 @@ class TaskQuery
 
     public function get(): array
     {
-        $response = $this->client->http()
-            ->get('/api/tasks', $this->params)
-            ->json('data');
+        $response = $this->client->handleResponse(
+            $this->client->http()->get('/api/tasks', $this->params)
+        )->json('data');
 
         return TaskData::collection($response ?? []);
+    }
+
+    public function find(string $id): ?TaskData
+    {
+        $response = $this->client->handleResponse(
+            $this->client->http()->get("/api/tasks/{$id}")
+        )->json();
+
+        return $response ? TaskData::fromArray($response) : null;
     }
 
     public function first(): ?TaskData
@@ -89,9 +104,9 @@ class TaskQuery
     {
         $this->params['per_page'] = $perPage;
 
-        $response = $this->client->http()
-            ->get('/api/tasks', $this->params)
-            ->json();
+        $response = $this->client->handleResponse(
+            $this->client->http()->get('/api/tasks', $this->params)
+        )->json();
 
         return [
             'data' => TaskData::collection($response['data'] ?? []),
@@ -101,26 +116,28 @@ class TaskQuery
 
     public function create(array $data): TaskData
     {
-        $response = $this->client->http()
-            ->post('/api/tasks', $data)
-            ->json();
+        $response = $this->client->handleResponse(
+            $this->client->http()->post('/api/tasks', $data)
+        )->json();
 
         return TaskData::fromArray($response);
     }
 
     public function update(string $id, array $data): TaskData
     {
-        $response = $this->client->http()
-            ->put("/api/tasks/{$id}", $data)
-            ->json();
+        $response = $this->client->handleResponse(
+            $this->client->http()->put("/api/tasks/{$id}", $data)
+        )->json();
 
         return TaskData::fromArray($response);
     }
 
     public function delete(string $id): bool
     {
-        return $this->client->http()
-            ->delete("/api/tasks/{$id}")
-            ->successful();
+        $this->client->handleResponse(
+            $this->client->http()->delete("/api/tasks/{$id}")
+        );
+
+        return true;
     }
 }

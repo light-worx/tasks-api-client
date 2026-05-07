@@ -4,6 +4,7 @@ namespace Lightworx\TasksApiClient\Auth;
 
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Http;
+use Lightworx\TasksApiClient\Exceptions\UnauthorizedException;
 
 class TokenManager
 {
@@ -20,13 +21,13 @@ class TokenManager
 
     private function requestToken(): string
     {
-        $response = Http::post($this->config['base_url'].'/api/clients/token', [
+        $response = Http::post($this->config['base_url'].'/api/auth/token', [
             'client_id' => $this->config['client_id'],
             'client_secret' => $this->config['client_secret'],
         ]);
 
         if (! $response->successful()) {
-            throw new \Exception('Unable to authenticate with Tasks API');
+            throw new UnauthorizedException('Unable to authenticate: check your client_id and client_secret');
         }
 
         return $response['access_token'];

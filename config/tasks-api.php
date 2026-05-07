@@ -5,6 +5,7 @@ return [
 
     'client_id' => env('TASKS_API_CLIENT_ID'),
 
+    // MUST NOT be hardcoded. Always load from environment variables.
     'client_secret' => env('TASKS_API_CLIENT_SECRET'),
 
     'cache_token_minutes' => 55,
