@@ -48,7 +48,7 @@ class ProjectQuery
     public function get(): array
     {
         $response = $this->client->handleResponse(
-            $this->client->http()->get('/api/projects', $this->params)
+            $this->client->request('get', '/api/projects', $this->params)
         )->json();
 
         $items = isset($response['data']) ? $response['data'] : $response;
@@ -59,7 +59,7 @@ class ProjectQuery
     public function find(string $id): ?ProjectData
     {
         $response = $this->client->handleResponse(
-            $this->client->http()->get("/api/projects/{$id}")
+            $this->client->request('get', "/api/projects/{$id}")
         )->json();
 
         return $response ? ProjectData::fromArray($response) : null;
@@ -79,7 +79,7 @@ class ProjectQuery
         $this->params['per_page'] = $perPage;
 
         $response = $this->client->handleResponse(
-            $this->client->http()->get('/api/projects', $this->params)
+            $this->client->request('get', '/api/projects', $this->params)
         )->json();
 
         $items = isset($response['data']) ? $response['data'] : $response;
@@ -93,7 +93,7 @@ class ProjectQuery
     public function create(array $data): ProjectData
     {
         $response = $this->client->handleResponse(
-            $this->client->http()->post('/api/projects', $data)
+            $this->client->request('post', '/api/projects', $data)
         )->json();
 
         return ProjectData::fromArray($response);
@@ -102,7 +102,7 @@ class ProjectQuery
     public function update(string $id, array $data): ProjectData
     {
         $response = $this->client->handleResponse(
-            $this->client->http()->put("/api/projects/{$id}", $data)
+            $this->client->request('put', "/api/projects/{$id}", $data)
         )->json();
 
         return ProjectData::fromArray($response);
@@ -111,7 +111,7 @@ class ProjectQuery
     public function delete(string $id): bool
     {
         $this->client->handleResponse(
-            $this->client->http()->delete("/api/projects/{$id}")
+            $this->client->request('delete', "/api/projects/{$id}")
         );
 
         return true;

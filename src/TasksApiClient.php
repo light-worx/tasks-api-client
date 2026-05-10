@@ -41,6 +41,19 @@ class TasksApiClient
         return new ProjectQuery($this);
     }
 
+    public function request(string $method, string $url, array $data = []): Response
+    {
+        $response = $this->http()->{$method}($url, $data);
+
+        if ($response->status() === 401) {
+            // Token was rejected — refresh and retry once
+            $this->tokenManager->refreshToken();
+            $response = $this->http()->{$method}($url, $data);
+        }
+
+        return $response;
+    }
+
     public function http()
     {
         $token = $this->tokenManager->getToken();

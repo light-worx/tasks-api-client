@@ -37,4 +37,10 @@ class TokenManager
     {
         return 'tasks_api_token_'.md5($this->config['client_id']);
     }
+
+    public function refreshToken(): string
+    {
+        Cache::forget($this->cacheKey());
+        return $this->getToken();
+    }
 }

@@ -76,7 +76,7 @@ class TaskQuery
     public function get(): array
     {
         $response = $this->client->handleResponse(
-            $this->client->http()->get('/api/tasks', $this->params)
+            $this->client->request('get', '/api/tasks', $this->params)
         )->json();
 
         $items = isset($response['data']) ? $response['data'] : $response;
@@ -87,7 +87,7 @@ class TaskQuery
     public function find(string $id): ?TaskData
     {
         $response = $this->client->handleResponse(
-            $this->client->http()->get("/api/tasks/{$id}")
+            $this->client->request('get', "/api/tasks/{$id}")
         )->json();
 
         return $response ? TaskData::fromArray($response) : null;
@@ -107,7 +107,7 @@ class TaskQuery
         $this->params['per_page'] = $perPage;
 
         $response = $this->client->handleResponse(
-            $this->client->http()->get('/api/tasks', $this->params)
+            $this->client->request('get', '/api/tasks', $this->params)
         )->json();
 
         $items = isset($response['data']) ? $response['data'] : $response;
@@ -121,7 +121,7 @@ class TaskQuery
     public function create(array $data): TaskData
     {
         $response = $this->client->handleResponse(
-            $this->client->http()->post('/api/tasks', $data)
+            $this->client->request('post', '/api/tasks', $data)
         )->json();
 
         return TaskData::fromArray($response);
@@ -130,7 +130,7 @@ class TaskQuery
     public function update(string $id, array $data): TaskData
     {
         $response = $this->client->handleResponse(
-            $this->client->http()->put("/api/tasks/{$id}", $data)
+            $this->client->request('put', "/api/tasks/{$id}", $data)
         )->json();
 
         return TaskData::fromArray($response);
@@ -139,7 +139,7 @@ class TaskQuery
     public function delete(string $id): bool
     {
         $this->client->handleResponse(
-            $this->client->http()->delete("/api/tasks/{$id}")
+            $this->client->request('delete', "/api/tasks/{$id}")
         );
 
         return true;
