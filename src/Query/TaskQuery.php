@@ -110,8 +110,10 @@ class TaskQuery
             $this->client->http()->get('/api/tasks', $this->params)
         )->json();
 
+        $items = isset($response['data']) ? $response['data'] : $response;
+
         return [
-            'data' => TaskData::collection($response['data'] ?? []),
+            'data' => TaskData::collection($items ?? []),
             'meta' => $response['meta'] ?? null,
         ];
     }

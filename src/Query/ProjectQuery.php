@@ -82,8 +82,10 @@ class ProjectQuery
             $this->client->http()->get('/api/projects', $this->params)
         )->json();
 
+        $items = isset($response['data']) ? $response['data'] : $response;
+
         return [
-            'data' => ProjectData::collection($response['data'] ?? []),
+            'data' => ProjectData::collection($items ?? []),
             'meta' => $response['meta'] ?? null,
         ];
     }
