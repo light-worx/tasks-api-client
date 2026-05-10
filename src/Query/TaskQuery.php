@@ -77,9 +77,11 @@ class TaskQuery
     {
         $response = $this->client->handleResponse(
             $this->client->http()->get('/api/tasks', $this->params)
-        )->json('data');
+        )->json();
 
-        return TaskData::collection($response ?? []);
+        $items = isset($response['data']) ? $response['data'] : $response;
+
+        return TaskData::collection($items ?? []);
     }
 
     public function find(string $id): ?TaskData

@@ -47,18 +47,20 @@ class ProjectQuery
 
     public function get(): array
     {
-        $response = $this->client->http()
-            ->get('/api/projects', $this->params)
-            ->json('data');
+        $response = $this->client->handleResponse(
+            $this->client->http()->get('/api/projects', $this->params)
+        )->json();
 
-        return ProjectData::collection($response ?? []);
+        $items = isset($response['data']) ? $response['data'] : $response;
+
+        return ProjectData::collection($items ?? []);
     }
 
     public function find(string $id): ?ProjectData
     {
-        $response = $this->client->http()
-            ->get("/api/projects/{$id}")
-            ->json();
+        $response = $this->client->handleResponse(
+            $this->client->http()->get("/api/projects/{$id}")
+        )->json();
 
         return $response ? ProjectData::fromArray($response) : null;
     }
@@ -76,9 +78,9 @@ class ProjectQuery
     {
         $this->params['per_page'] = $perPage;
 
-        $response = $this->client->http()
-            ->get('/api/projects', $this->params)
-            ->json();
+        $response = $this->client->handleResponse(
+            $this->client->http()->get('/api/projects', $this->params)
+        )->json();
 
         return [
             'data' => ProjectData::collection($response['data'] ?? []),
@@ -88,26 +90,28 @@ class ProjectQuery
 
     public function create(array $data): ProjectData
     {
-        $response = $this->client->http()
-            ->post('/api/projects', $data)
-            ->json();
+        $response = $this->client->handleResponse(
+            $this->client->http()->post('/api/projects', $data)
+        )->json();
 
         return ProjectData::fromArray($response);
     }
 
     public function update(string $id, array $data): ProjectData
     {
-        $response = $this->client->http()
-            ->put("/api/projects/{$id}", $data)
-            ->json();
+        $response = $this->client->handleResponse(
+            $this->client->http()->put("/api/projects/{$id}", $data)
+        )->json();
 
         return ProjectData::fromArray($response);
     }
 
     public function delete(string $id): bool
     {
-        return $this->client->http()
-            ->delete("/api/projects/{$id}")
-            ->successful();
+        $this->client->handleResponse(
+            $this->client->http()->delete("/api/projects/{$id}")
+        );
+
+        return true;
     }
 }
