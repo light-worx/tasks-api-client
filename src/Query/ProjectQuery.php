@@ -86,7 +86,14 @@ class ProjectQuery
 
         return [
             'data' => ProjectData::collection($items ?? []),
-            'meta' => $response['meta'] ?? null,
+            'meta' => [
+                'current_page' => $response['current_page'] ?? null,
+                'last_page'    => $response['last_page'] ?? null,
+                'per_page'     => $response['per_page'] ?? null,
+                'total'        => $response['total'] ?? null,
+                'from'         => $response['from'] ?? null,
+                'to'           => $response['to'] ?? null,
+            ],
         ];
     }
 

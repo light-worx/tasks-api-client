@@ -47,6 +47,12 @@ class TaskQuery
         return $this->whereAssignedTo($email);
     }
 
+    public function ownerEmail(string $email): self
+    {
+        $this->params['owner_email'] = $email;
+        return $this;
+    }
+
     public function perPage(int $perPage): self
     {
         $this->params['per_page'] = $perPage;
@@ -114,7 +120,14 @@ class TaskQuery
 
         return [
             'data' => TaskData::collection($items ?? []),
-            'meta' => $response['meta'] ?? null,
+            'meta' => [
+                'current_page' => $response['current_page'] ?? null,
+                'last_page'    => $response['last_page'] ?? null,
+                'per_page'     => $response['per_page'] ?? null,
+                'total'        => $response['total'] ?? null,
+                'from'         => $response['from'] ?? null,
+                'to'           => $response['to'] ?? null,
+            ],
         ];
     }
 
