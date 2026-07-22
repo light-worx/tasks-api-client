@@ -11,6 +11,7 @@ class TaskData
         public readonly string $assigned_email,
         public readonly ?string $status,
         public readonly ?string $project_id,
+        public readonly ?int $context_id,
         public readonly ?string $due_at,
     ) {}
 
@@ -23,6 +24,7 @@ class TaskData
             assigned_email: $data['assigned_email'],
             status: $data['status'] ?? null,
             project_id: $data['project_id'] ?? null,
+            context_id: isset($data['context_id']) ? (int) $data['context_id'] : null,
             due_at: $data['due_at'] ?? null,
         );
     }

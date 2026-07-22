@@ -6,7 +6,7 @@ This document is intended for AI assistants and developers writing Laravel appli
 
 ## Overview
 
-The Tasks API is a multi-tenant task management system. Client applications interact with it through a Laravel SDK that handles authentication, request building, and response mapping automatically.
+The Tasks API is a multi-tenant task management system built around a Getting Things Done (GTD) workflow. Client applications interact with it through a Laravel SDK that handles authentication, request building, and response mapping automatically.
 
 **Composer package:** `light-worx/tasks-api-client`
 **Facade:** `TasksApi`
@@ -64,11 +64,85 @@ public function __construct(private TasksApiClient $tasksApi) {}
 
 ---
 
+## Task Statuses
+
+The API uses a GTD-aligned set of statuses. Tasks are created with `inbox` as the default status and processed from there.
+
+| Status | Meaning |
+|---|---|
+| `inbox` | Captured but not yet processed — the default on creation |
+| `next` | Clarified and actionable — do this next |
+| `waiting` | Delegated — waiting on someone else |
+| `scheduled` | Deferred to a specific date (use with `due_at`) |
+| `someday` | Parked — maybe later, not now |
+| `done` | Complete |
+
+Statuses are strings. The full list of active statuses for an organisation can be fetched via the meta endpoint — see Task Statuses (Meta) below.
+
+---
+
+## Contexts
+
+Contexts are GTD-style tags that describe where or how a task can be done (e.g. `@phone`, `@computer`, `@home`). They are personal — each context belongs to a specific user identified by `owner_email` and are managed outside the SDK via the application's own UI.
+
+Tasks carry a `context_id` (integer, nullable) identifying which context they belong to. When filtering tasks by context, pass the numeric ID of the context.
+
+Contexts are not managed through this SDK — they are created and maintained by users directly in the application.
+
+---
+
+## Task Visibility — Read This First
+
+**The API enforces strict visibility rules on all task queries. Calling `->get()` with no filters will return an empty result unless your client has the `can_view_all_tasks` permission.**
+
+Task visibility is determined by the permissions granted to your `client_id` on the API side. There are two access models:
+
+### Organisation-wide access (`can_view_all_tasks`)
+
+If your client has been granted `can_view_all_tasks`, queries work without requiring any additional filters:
+
+```php
+// Works as-is for clients with can_view_all_tasks
+$tasks = TasksApi::tasks()->get();
+$tasks = TasksApi::tasks()->status('next')->get();
+```
+
+### Assigned task lookup (`can_lookup_assigned_tasks`)
+
+If your client has `can_lookup_assigned_tasks` instead, **you must pass `assigned_email` on every query** or the API will return an empty result set. This is enforced server-side — the SDK cannot work around it.
+
+```php
+// WRONG — returns empty for can_lookup_assigned_tasks clients
+$tasks = TasksApi::tasks()->status('next')->get();
+
+// CORRECT — assigned_email is required
+$tasks = TasksApi::tasks()
+    ->status('next')
+    ->assignedTo('jane@example.com')
+    ->get();
+```
+
+If you are unsure which permission your client has been granted, contact whoever manages your API client credentials.
+
+### Project visibility
+
+Tasks are returned if they either belong to a **public project** or have **no project at all**. Tasks on private projects are excluded by default. To include tasks from a private project, your client must have `can_lookup_assigned_tasks` and you must pass both `assigned_email` and `owner_email`:
+
+```php
+$tasks = TasksApi::tasks()
+    ->assignedTo('jane@example.com')
+    ->ownerEmail('pastor@example.com')
+    ->get();
+```
+
+---
+
 ## Tasks
 
 ### Fetch all tasks
 
 ```php
+// Only works without filters for clients with can_view_all_tasks
 $tasks = TasksApi::tasks()->get();
 ```
 
@@ -78,8 +152,8 @@ Filters can be chained in any combination:
 
 ```php
 $tasks = TasksApi::tasks()
-    ->status('pending')
-    ->project('proj_abc123')
+    ->status('next')
+    ->context(3)
     ->assignedTo('jane@example.com')
     ->latest()
     ->get();
@@ -89,12 +163,15 @@ Available filter methods:
 
 | Method | API parameter | Description |
 |---|---|---|
-| `->status(string)` | `status` | Filter by task status |
+| `->status(string)` | `status` | Filter by GTD status |
 | `->whereStatus(string)` | `status` | Alias for `status()` |
 | `->project(string)` | `project_id` | Filter by project ID |
 | `->whereProject(string)` | `project_id` | Alias for `project()` |
-| `->assignedTo(string)` | `assigned_email` | Filter by assignee email |
+| `->assignedTo(string)` | `assigned_email` | Filter by assignee email. **Required** for `can_lookup_assigned_tasks` clients |
 | `->whereAssignedTo(string)` | `assigned_email` | Alias for `assignedTo()` |
+| `->ownerEmail(string)` | `owner_email` | Unlocks visibility of private projects owned by this email |
+| `->context(int)` | `context` | Filter by context ID |
+| `->whereContext(int)` | `context` | Alias for `context()` |
 | `->perPage(int)` | `per_page` | Number of results per page |
 | `->latest(string?)` | `sort` | Sort descending, default `created_at` |
 | `->oldest(string?)` | `sort` | Sort ascending, default `created_at` |
@@ -109,7 +186,8 @@ $task = TasksApi::tasks()->find('task_abc123');
 
 ```php
 $task = TasksApi::tasks()
-    ->status('pending')
+    ->status('next')
+    ->assignedTo('jane@example.com')
     ->first();
 ```
 
@@ -117,23 +195,30 @@ $task = TasksApi::tasks()
 
 ```php
 $result = TasksApi::tasks()
-    ->status('pending')
+    ->status('inbox')
+    ->assignedTo('jane@example.com')
     ->paginate(25);
 
 $tasks = $result['data'];  // array of TaskData objects
-$meta  = $result['meta'];  // pagination metadata from the API
+$meta  = $result['meta'];  // pagination metadata
 ```
 
+`$result['meta']` contains: `current_page`, `last_page`, `per_page`, `total`, `from`, `to`.
+
 ### Create a task
+
+`project_id` is optional. Tasks without a project are visible to all clients within the organisation.
 
 ```php
 $task = TasksApi::tasks()->create([
     'title'          => 'Review sermon notes',
     'description'    => 'Check the notes for Sunday service',
     'assigned_email' => 'john@example.com',
-    'project_id'     => 'proj_abc123',
     'due_at'         => '2026-06-01T09:00:00Z',
-    'status'         => 'pending',
+    'status'         => 'inbox',
+    // optional
+    'project_id'     => 'proj_abc123',
+    'context_id'     => 3,
 ]);
 ```
 
@@ -141,7 +226,8 @@ $task = TasksApi::tasks()->create([
 
 ```php
 $task = TasksApi::tasks()->update('task_abc123', [
-    'status' => 'complete',
+    'status'     => 'done',
+    'context_id' => null, // remove context
 ]);
 ```
 
@@ -199,7 +285,7 @@ Returns an array of status objects. To get a key-value array suitable for a sele
 
 ```php
 $options = TasksApi::meta()->statusOptions();
-// e.g. ['pending' => 'Pending', 'in_progress' => 'In Progress', 'complete' => 'Complete']
+// ['inbox' => 'Inbox', 'next' => 'Next', 'waiting' => 'Waiting', ...]
 ```
 
 Status metadata is cached for one hour.
@@ -218,9 +304,10 @@ The SDK returns typed DTO objects rather than raw arrays.
 | `$title` | `string` | Task title |
 | `$description` | `?string` | Optional description |
 | `$assigned_email` | `string` | Assignee email address |
-| `$status` | `?string` | Current status |
-| `$project_id` | `?string` | Associated project ID |
-| `$due_at` | `?string` | Due date/time (ISO 8601) |
+| `$status` | `?string` | GTD status — see Task Statuses above |
+| `$project_id` | `?string` | Associated project ID (nullable — tasks need not belong to a project) |
+| `$context_id` | `?int` | Associated context ID (nullable) |
+| `$due_at` | `?string` | Due date/time (ISO 8601). Primarily used with `scheduled` status |
 
 ### `ProjectData`
 
@@ -238,8 +325,8 @@ All properties are `readonly`. Access them directly:
 $task = TasksApi::tasks()->find('task_abc123');
 
 echo $task->title;
-echo $task->assigned_email;
 echo $task->status;
+echo $task->context_id;
 ```
 
 ---
@@ -262,7 +349,6 @@ use Lightworx\TasksApiClient\Exceptions\ValidationException;
 try {
     $task = TasksApi::tasks()->create($data);
 } catch (ValidationException $e) {
-    // Returns field-level errors from the API response
     return back()->withErrors($e->errors());
 } catch (ForbiddenException $e) {
     abort(403, 'You do not have permission to create tasks.');
@@ -272,13 +358,11 @@ try {
 }
 ```
 
-The `ValidationException` exposes an `errors()` method that returns the full field-level error array from the API, making it straightforward to pass directly to Laravel's `withErrors()`.
-
 ---
 
 ## Rate Limits
 
-The API enforces a limit of **60 requests per minute per client**. If you are making many calls in a single request cycle (for example, bulk operations), batch your calls or introduce short delays between them. Exceeding the rate limit will result in a `429 Too Many Requests` response.
+The API enforces a limit of **60 requests per minute per client**. Exceeding this will result in a `429 Too Many Requests` response.
 
 ---
 
@@ -295,30 +379,36 @@ These are enforced by the API and must be respected in all client code:
 
 ## Assignment
 
-Tasks are assigned via `assigned_email`. This is an email address for an external user and does not need to correspond to a user account within your application.
+Tasks are assigned via `assigned_email`. This does not need to correspond to a user account within your application.
 
 ```php
 TasksApi::tasks()->create([
     'title'          => 'Prepare slides',
     'assigned_email' => 'speaker@example.com',
+    'status'         => 'inbox',
 ]);
 ```
-
-A future `assigned_client_id` field is planned but not yet active.
 
 ---
 
 ## Quick Reference
 
 ```php
-// Tasks
+// Tasks — organisation-wide access (can_view_all_tasks)
 TasksApi::tasks()->get();
 TasksApi::tasks()->find($id);
-TasksApi::tasks()->status('pending')->project($projectId)->get();
-TasksApi::tasks()->assignedTo('user@example.com')->latest()->paginate(25);
+TasksApi::tasks()->status('next')->get();
+TasksApi::tasks()->status('next')->context($contextId)->get();
 TasksApi::tasks()->create([...]);
 TasksApi::tasks()->update($id, [...]);
 TasksApi::tasks()->delete($id);
+
+// Tasks — assigned lookup access (can_lookup_assigned_tasks)
+// assigned_email is required on every query
+TasksApi::tasks()->assignedTo('user@example.com')->get();
+TasksApi::tasks()->assignedTo('user@example.com')->status('inbox')->paginate(25);
+TasksApi::tasks()->assignedTo('user@example.com')->context($contextId)->get();
+TasksApi::tasks()->assignedTo('user@example.com')->ownerEmail('owner@example.com')->get();
 
 // Projects
 TasksApi::projects()->get();

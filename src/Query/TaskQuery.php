@@ -53,6 +53,17 @@ class TaskQuery
         return $this;
     }
 
+    public function whereContext(int $contextId): self
+    {
+        $this->params['context'] = $contextId;
+        return $this;
+    }
+
+    public function context(int $contextId): self
+    {
+        return $this->whereContext($contextId);
+    }
+
     public function perPage(int $perPage): self
     {
         $this->params['per_page'] = $perPage;
