@@ -66,18 +66,30 @@ public function __construct(private TasksApiClient $tasksApi) {}
 
 ## Task Statuses
 
-The API uses a GTD-aligned set of statuses. Tasks are created with `inbox` as the default status and processed from there.
+Statuses are defined in the `task_statuses` table and have both an `id` and a `label`. **Always use the `id` when creating, updating, or filtering tasks — never the label.** The label is for display purposes only and may change without notice. The `id` is permanent.
 
-| Status | Meaning |
-|---|---|
-| `inbox` | Captured but not yet processed — the default on creation |
-| `next` | Clarified and actionable — do this next |
-| `waiting` | Delegated — waiting on someone else |
-| `scheduled` | Deferred to a specific date (use with `due_at`) |
-| `someday` | Parked — maybe later, not now |
-| `done` | Complete |
+The default GTD-aligned statuses are:
 
-Statuses are strings. The full list of active statuses for an organisation can be fetched via the meta endpoint — see Task Statuses (Meta) below.
+| id | label | Meaning |
+|---|---|---|
+| `inbox` | Inbox | Captured but not yet processed — the default on creation |
+| `next` | Next | Clarified and actionable — do this next |
+| `waiting` | Waiting | Delegated — waiting on someone else |
+| `scheduled` | Scheduled | Deferred to a specific date (use with `due_at`) |
+| `someday` | Someday | Parked — maybe later, not now |
+| `done` | Done | Complete |
+
+To fetch the current status list for the organisation (ids, labels, and display colours):
+
+```php
+$statuses = TasksApi::statuses();
+
+// Or as a key-value array of id => label, suitable for a select input:
+$options = TasksApi::meta()->statusOptions();
+// ['inbox' => 'Inbox', 'next' => 'Next', 'waiting' => 'Waiting', ...]
+```
+
+Always use `statusOptions()` to populate dropdowns — do not hardcode status ids in UI components, as the available statuses may be customised per organisation.
 
 ---
 
@@ -152,7 +164,7 @@ Filters can be chained in any combination:
 
 ```php
 $tasks = TasksApi::tasks()
-    ->status('next')
+    ->status('next')           // pass the status id, not the label
     ->context(3)
     ->assignedTo('jane@example.com')
     ->latest()
@@ -163,7 +175,7 @@ Available filter methods:
 
 | Method | API parameter | Description |
 |---|---|---|
-| `->status(string)` | `status` | Filter by GTD status |
+| `->status(string)` | `status` | Filter by status id |
 | `->whereStatus(string)` | `status` | Alias for `status()` |
 | `->project(string)` | `project_id` | Filter by project ID |
 | `->whereProject(string)` | `project_id` | Alias for `project()` |
@@ -207,7 +219,7 @@ $meta  = $result['meta'];  // pagination metadata
 
 ### Create a task
 
-`project_id` is optional. Tasks without a project are visible to all clients within the organisation.
+Pass the status **id**, not the label. `project_id` is optional — tasks without a project are visible to all clients within the organisation.
 
 ```php
 $task = TasksApi::tasks()->create([
@@ -215,19 +227,21 @@ $task = TasksApi::tasks()->create([
     'description'    => 'Check the notes for Sunday service',
     'assigned_email' => 'john@example.com',
     'due_at'         => '2026-06-01T09:00:00Z',
-    'status'         => 'inbox',
+    'status'         => 'inbox',       // id, not label
     // optional
     'project_id'     => 'proj_abc123',
     'context_id'     => 3,
 ]);
 ```
 
+The API will reject an unrecognised status id with a `422 Validation Error`.
+
 ### Update a task
 
 ```php
 $task = TasksApi::tasks()->update('task_abc123', [
-    'status'     => 'done',
-    'context_id' => null, // remove context
+    'status'     => 'done',   // id, not label
+    'context_id' => null,     // remove context
 ]);
 ```
 
@@ -275,17 +289,12 @@ $meta     = $result['meta'];
 
 ## Task Statuses (Meta)
 
-Fetch the available task statuses defined by the API:
-
 ```php
+// Full status objects (id, label, colour, sort_order)
 $statuses = TasksApi::statuses();
-```
 
-Returns an array of status objects. To get a key-value array suitable for a select input:
-
-```php
+// key-value array of id => label, for select inputs
 $options = TasksApi::meta()->statusOptions();
-// ['inbox' => 'Inbox', 'next' => 'Next', 'waiting' => 'Waiting', ...]
 ```
 
 Status metadata is cached for one hour.
@@ -304,8 +313,8 @@ The SDK returns typed DTO objects rather than raw arrays.
 | `$title` | `string` | Task title |
 | `$description` | `?string` | Optional description |
 | `$assigned_email` | `string` | Assignee email address |
-| `$status` | `?string` | GTD status — see Task Statuses above |
-| `$project_id` | `?string` | Associated project ID (nullable — tasks need not belong to a project) |
+| `$status` | `?string` | The status **id** (e.g. `inbox`, `next`, `done`) |
+| `$project_id` | `?string` | Associated project ID (nullable) |
 | `$context_id` | `?int` | Associated context ID (nullable) |
 | `$due_at` | `?string` | Due date/time (ISO 8601). Primarily used with `scheduled` status |
 
@@ -325,7 +334,7 @@ All properties are `readonly`. Access them directly:
 $task = TasksApi::tasks()->find('task_abc123');
 
 echo $task->title;
-echo $task->status;
+echo $task->status;      // 'next', 'inbox', etc — always the id
 echo $task->context_id;
 ```
 
@@ -339,7 +348,7 @@ The SDK throws typed exceptions for API errors. Always wrap SDK calls in a try/c
 |---|---|---|
 | `UnauthorizedException` | 401 | Invalid or expired credentials |
 | `ForbiddenException` | 403 | Authenticated but not permitted |
-| `ValidationException` | 422 | Request failed validation |
+| `ValidationException` | 422 | Request failed validation — including invalid status ids |
 
 ```php
 use Lightworx\TasksApiClient\Exceptions\UnauthorizedException;
@@ -397,10 +406,10 @@ TasksApi::tasks()->create([
 // Tasks — organisation-wide access (can_view_all_tasks)
 TasksApi::tasks()->get();
 TasksApi::tasks()->find($id);
-TasksApi::tasks()->status('next')->get();
+TasksApi::tasks()->status('next')->get();                         // status id
 TasksApi::tasks()->status('next')->context($contextId)->get();
-TasksApi::tasks()->create([...]);
-TasksApi::tasks()->update($id, [...]);
+TasksApi::tasks()->create(['status' => 'inbox', ...]);            // status id
+TasksApi::tasks()->update($id, ['status' => 'done']);             // status id
 TasksApi::tasks()->delete($id);
 
 // Tasks — assigned lookup access (can_lookup_assigned_tasks)
@@ -418,5 +427,5 @@ TasksApi::projects()->paginate(20);
 
 // Meta
 TasksApi::statuses();
-TasksApi::meta()->statusOptions();
+TasksApi::meta()->statusOptions();  // ['inbox' => 'Inbox', 'next' => 'Next', ...]
 ```
