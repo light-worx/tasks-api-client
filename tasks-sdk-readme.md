@@ -95,11 +95,61 @@ Always use `statusOptions()` to populate dropdowns — do not hardcode status id
 
 ## Contexts
 
-Contexts are GTD-style tags that describe where or how a task can be done (e.g. `@phone`, `@computer`, `@home`). They are personal — each context belongs to a specific user identified by `owner_email` and are managed outside the SDK via the application's own UI.
+Contexts are GTD-style tags that describe where or how a task can be done (e.g. `@phone`, `@computer`, `@home`).
 
-Tasks carry a `context_id` (integer, nullable) identifying which context they belong to. When filtering tasks by context, pass the numeric ID of the context.
+### Fetching contexts
 
-Contexts are not managed through this SDK — they are created and maintained by users directly in the application.
+Contexts are scoped to an individual user by `owner_email`. You must pass `owner_email` to fetch them — the API will reject the request without it.
+
+```php
+$contexts = TasksApi::contexts('jane@example.com');
+```
+
+Returns an array of `ContextData` objects. Only active contexts are returned, ordered by `sort_order`.
+
+### `ContextData`
+
+| Property | Type | Description |
+|---|---|---|
+| `$id` | `int` | Numeric context ID — use this when filtering tasks or creating tasks with a context |
+| `$label` | `string` | Display name (e.g. `@phone`, `Home`) |
+| `$colour` | `?string` | Optional hex or CSS colour for display |
+| `$sort_order` | `int` | Display ordering |
+| `$is_active` | `bool` | Whether the context is active |
+| `$owner_email` | `string` | The user this context belongs to |
+
+### Context scoping
+
+Contexts are personal — two users in the same organisation have entirely separate context lists. A context belonging to `jane@example.com` is not visible when fetching contexts for `john@example.com`. The API enforces this via `owner_email` — it is not possible to retrieve another user's contexts.
+
+Contexts can only be **created, updated, and deleted** through the PWA application. The API exposes read-only access.
+
+### Using context_id on tasks
+
+Tasks carry a `context_id` (nullable integer). Use the numeric `id` from `ContextData` when filtering, creating, or updating tasks:
+
+```php
+// Fetch contexts first to get the ids
+$contexts = TasksApi::contexts('jane@example.com');
+
+// Filter tasks by context
+TasksApi::tasks()
+    ->assignedTo('jane@example.com')
+    ->context($contexts[0]->id)
+    ->get();
+
+// Assign a context when creating
+TasksApi::tasks()->create([
+    'title'          => 'Call the venue',
+    'assigned_email' => 'jane@example.com',
+    'status'         => 'next',
+    'context_id'     => $contexts[0]->id,
+]);
+
+// Update or remove a context
+TasksApi::tasks()->update('task_abc123', ['context_id' => 3]);
+TasksApi::tasks()->update('task_abc123', ['context_id' => null]); // remove
+```
 
 ---
 
@@ -428,4 +478,7 @@ TasksApi::projects()->paginate(20);
 // Meta
 TasksApi::statuses();
 TasksApi::meta()->statusOptions();  // ['inbox' => 'Inbox', 'next' => 'Next', ...]
+
+// Contexts
+TasksApi::contexts('user@example.com');  // owner_email required
 ```
